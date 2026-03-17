@@ -1,0 +1,23 @@
+Vagrant.configure("2") do |config|
+	config.vm.define "abel-mqaS" do |s|
+		s.vm.box = "bento/debian-11"
+		s.vm.hostname = "abel-mqaS"
+		s.vm.network "private_network", ip: "192.168.56.110"
+		s.vm.provider "vmware_desktop" do |vb|
+			vb.memory = 1024
+			vb.cpus = 1
+		end
+		s.vm.provision "shell", path: "./scripts/install-k3s-controller-mode.sh"
+	end
+
+	config.vm.define "abel-mqaSW" do |sw|
+		sw.vm.box = "bento/debian-11"
+		sw.vm.hostname = "abel-mqaSW"
+		sw.vm.network "private_network", ip: "192.168.56.111"
+		sw.vm.provider "vmware_desktop" do |vb|
+			vb.memory = 1024
+			vb.cpus = 1
+		end
+		sw.vm.provision "shell", path: "./scripts/install-k3s-agent-mode.sh"
+	end
+end
