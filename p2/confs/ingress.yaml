@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  defaultBackend:
+    service:
+      name: app3-service
+      port:
+        number: 80
+  rules:
+    - host: "app1.com"
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: app1-service
+                port:
+                  number: 80
+    - host: "app2.com"
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: app2-service
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-default
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.priority: "1"
+spec:
+  rules:
+    - http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: app3-service
+                port:
+                  number: 80

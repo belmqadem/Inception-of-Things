@@ -7,6 +7,6 @@ Vagrant.configure("2") do |config|
 			vb.memory = 1024
 			vb.cpus = 1
 		end
-		s.vm.provision "shell", path: "./scripts/install-k3s-controller-mode.sh"
+		s.vm.provision "shell", path: "scripts/server.sh"
 	end
 end
