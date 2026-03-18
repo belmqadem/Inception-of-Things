@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
         - name: app3
-          image: nginx
+          image: nginx:1.27-alpine
           ports:
             - containerPort: 80
           volumeMounts:
