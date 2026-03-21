@@ -1,23 +1,28 @@
-Vagrant.configure("2") do |config|
-	config.vm.define "abel-mqaS" do |s|
-		s.vm.box = "bento/debian-11"
-		s.vm.hostname = "abel-mqaS"
-		s.vm.network "private_network", ip: "192.168.56.110"
-		s.vm.provider "vmware_desktop" do |vb|
-			vb.memory = 1024
-			vb.cpus = 1
-		end
-		s.vm.provision "shell", path: "./scripts/install-k3s-controller-mode.sh"
-	end
+Vagrant.require_version ">= 2.4.0"
 
-	config.vm.define "abel-mqaSW" do |sw|
-		sw.vm.box = "bento/debian-11"
-		sw.vm.hostname = "abel-mqaSW"
-		sw.vm.network "private_network", ip: "192.168.56.111"
-		sw.vm.provider "vmware_desktop" do |vb|
-			vb.memory = 1024
-			vb.cpus = 1
-		end
-		sw.vm.provision "shell", path: "./scripts/install-k3s-agent-mode.sh"
-	end
+NODES = [
+  ["abel-mqaS",  { ip: "192.168.56.110", script: "controller" }],
+  ["abel-mqaSW", { ip: "192.168.56.111", script: "agent"      }]
+]
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/debian-11"
+  config.vm.box_version = "202508.03.0"
+  config.vm.box_check_update = false
+
+  NODES.each do |name, conf|
+    config.vm.define name do |node|
+      node.vm.hostname = name
+      node.vm.network "private_network", ip: conf[:ip]
+
+      node.vm.provider "vmware_desktop" do |v|
+        v.memory = 1024
+        v.cpus   = 1
+        v.gui    = false
+      end
+
+      node.vm.provision "shell",
+        path: "scripts/install-k3s-#{conf[:script]}-mode.sh"
+    end
+  end
 end
