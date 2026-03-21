@@ -110,13 +110,102 @@ Note: Linux lowercases hostnames automatically — `<login>S` displays as `<logi
 
 ## Part 2: K3s and three simple applications
 
-*In progress*
+### Goal
+
+One VM running K3s with 3 web applications, accessible via different hostnames
+all pointing to the same IP `192.168.56.110`:
+
+- `app1.com` → App 1
+- `app2.com` → App 2 (3 replicas)
+- anything else → App 3 (default backend)
+
+### Steps followed
+
+#### 1. Initialize the Vagrantfile
+
+One VM with K3s in server mode, same configuration as Part 1 but with a single machine.
+
+#### 2. Write the Kubernetes manifests
+
+Three manifest files in `p2/confs/`:
+
+- `app1.yaml` — Deployment (1 replica) + Service + ConfigMap with custom HTML
+- `app2.yaml` — Deployment (3 replicas) + Service + ConfigMap with custom HTML
+- `app3.yaml` — Deployment (1 replica) + Service + ConfigMap with custom HTML
+- `ingress.yaml` — Ingress routing rules by HOST header
+
+#### 3. Ingress routing
+
+Traefik acts as the Ingress controller, routing traffic based on the `Host` header:
+
+```
+Browser request → Traefik (port 80) → Service → Pod(s)
+```
+
+The `defaultBackend` catches all unmatched hosts and routes to app3.
+
+#### 4. App differentiation
+
+Each app has a distinct colored HTML page served via a ConfigMap mounted as a volume
+into the nginx container:
+
+- App 1 → green page
+- App 2 → blue page
+- App 3 → orange page (default backend)
+
+### Usage
+
+```bash
+cd p2
+vagrant up
+vagrant ssh <login>S
+```
+
+### Verify everything is running
+
+```bash
+kubectl get pods
+kubectl get services
+kubectl get ingress
+```
+
+### Expected output
+
+```bash
+NAME                    READY   STATUS    RESTARTS   AGE
+app1-xxx                1/1     Running   0          Xm
+app2-xxx                1/1     Running   0          Xm
+app2-xxx                1/1     Running   0          Xm
+app2-xxx                1/1     Running   0          Xm
+app3-xxx                1/1     Running   0          Xm
+```
+
+### Test routing
+
+```bash
+curl -H "Host: app1.com" http://192.168.56.110   # → green page
+curl -H "Host: app2.com" http://192.168.56.110   # → blue page
+curl http://192.168.56.110                        # → orange page (default)
+```
+
+### Key concepts learned
+
+**ConfigMap** — stores configuration data as key-value pairs. Used here to inject
+custom HTML into nginx containers without rebuilding the image.
+
+**Ingress** — exposes HTTP routes from outside the cluster to services inside.
+Routes based on HOST header, path, or both.
+
+**Replicas** — multiple identical pods running simultaneously. App2 runs 3 replicas
+for load balancing. Kubernetes automatically distributes traffic between them.
+
+**Labels and Selectors** — the glue between Deployments, Services, and Ingress.
+A Service finds its pods by matching labels defined in the Deployment.
 
 ## Part 3: K3d and Argo CD
 
-*In progress*
+_In progress_
 
 ## Bonus: Gitlab
 
-*In progress*
-
+_In progress_
