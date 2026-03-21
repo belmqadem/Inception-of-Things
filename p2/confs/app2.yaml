@@ -6,6 +6,10 @@ data:
   index.html: |
     <!DOCTYPE html>
     <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>App 2</title>
+      </head>
       <body style="font-family: Arial; text-align: center; padding: 50px; background: #e3f2fd;">
         <h1>🔵 App 2</h1>
         <p>You reached <strong>app2.com</strong></p>

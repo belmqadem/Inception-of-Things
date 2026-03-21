@@ -6,6 +6,10 @@ data:
   index.html: |
     <!DOCTYPE html>
     <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>App 3</title>
+      </head>
       <body style="font-family: Arial; text-align: center; padding: 50px; background: #fff3e0;">
         <h1>🟠 App 3</h1>
         <p>You reached the <strong>default backend</strong></p>
