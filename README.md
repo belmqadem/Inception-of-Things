@@ -320,99 +320,301 @@ Replace the `vmware_desktop` provider block in the Vagrantfile with your provide
 
 ---
 
-## Part 2: K3s and three simple applications
+## Part 2: K3s and Three Simple Applications
 
-### Goal
+### Overview
 
-One VM running K3s with 3 web applications, accessible via different hostnames
-all pointing to the same IP `192.168.56.110`:
+One VM running K3s in server mode, hosting 3 web applications accessible via the
+same IP `192.168.56.110` but differentiated by the HTTP `Host` header:
 
-- `app1.com` → App 1
-- `app2.com` → App 2 (3 replicas)
-- anything else → App 3 (default backend)
+| Host header   | App   | Replicas | Page color |
+| ------------- | ----- | -------- | ---------- |
+| `app1.com`    | App 1 | 1        | 🟢 Green   |
+| `app2.com`    | App 2 | 3        | 🔵 Blue    |
+| anything else | App 3 | 1        | 🟠 Orange  |
 
-### Steps followed
+---
 
-#### 1. Initialize the Vagrantfile
-
-One VM with K3s in server mode, same configuration as Part 1 but with a single machine.
-
-#### 2. Write the Kubernetes manifests
-
-Three manifest files in `p2/confs/`:
-
-- `app1.yaml` — Deployment (1 replica) + Service + ConfigMap with custom HTML
-- `app2.yaml` — Deployment (3 replicas) + Service + ConfigMap with custom HTML
-- `app3.yaml` — Deployment (1 replica) + Service + ConfigMap with custom HTML
-- `ingress.yaml` — Ingress routing rules by HOST header
-
-#### 3. Ingress routing
-
-Traefik acts as the Ingress controller, routing traffic based on the `Host` header:
+### Project Structure
 
 ```
-Browser request → Traefik (port 80) → Service → Pod(s)
+p2/
+├── Vagrantfile
+├── scripts/
+│   └── server.sh
+└── confs/
+    ├── app1.yaml
+    ├── app2.yaml
+    ├── app3.yaml
+    └── ingress.yaml
 ```
 
-The `defaultBackend` catches all unmatched hosts and routes to app3.
+---
 
-#### 4. App differentiation
+### How It Works
 
-Each app has a distinct colored HTML page served via a ConfigMap mounted as a volume
-into the nginx container:
+#### Ingress Routing
 
-- App 1 → green page
-- App 2 → blue page
-- App 3 → orange page (default backend)
+K3s ships with [Traefik](https://traefik.io/) as its default Ingress controller.
+All HTTP traffic hits Traefik on port 80, which then routes to the correct Service
+based on the `Host` header:
+
+```
+curl -H "Host: app1.com" http://192.168.56.110
+        │
+        ▼
+   Traefik (port 80)
+        │
+        ├── Host: app1.com  → app1-service → app1 pod
+        ├── Host: app2.com  → app2-service → app2 pods (x3)
+        └── anything else   → app3-service → app3 pod
+```
+
+### Why Two Ingress Objects
+
+Traefik does **not** support the `defaultBackend` field of the Ingress spec — it
+returns 404 for unmatched hosts instead of falling back to it. To handle the default
+case, a second Ingress object with `host: ""` and a low router priority (`"1"`) is
+used. Named host rules get a higher default priority and always win for `app1.com`
+and `app2.com`, while everything else falls through to app3.
+
+### App Differentiation
+
+Each app serves a distinct HTML page injected via a **ConfigMap** mounted as a volume
+into the nginx container. This avoids building custom Docker images — the stock
+`nginx:1.27-alpine` image is reused for all three apps.
+
+### Replicas
+
+App 2 runs with `replicas: 3`. Kubernetes automatically load-balances traffic across
+all three pods through the Service. Each request may be served by a different pod.
+
+---
+
+### Prerequisites
+
+- [Vagrant](https://developer.hashicorp.com/vagrant/downloads) >= 2.4.0
+- [VMware Desktop](https://www.vmware.com/products/fusion.html) (or replace the provider block)
+- A working internet connection (K3s and nginx image are pulled during provisioning)
+
+---
 
 ### Usage
+
+#### Start the VM
 
 ```bash
 cd p2
 vagrant up
-vagrant ssh <login>S
 ```
 
-### Verify everything is running
+This will:
+
+1. Create and boot the VM (`abel-mqaS`) at `192.168.56.110`
+2. Install K3s in server mode
+3. Wait for the API server to be ready
+4. Apply all manifests from `confs/`
+
+### SSH into the VM
 
 ```bash
-kubectl get pods
-kubectl get services
-kubectl get ingress
+vagrant ssh abel-mqaS
 ```
 
-### Expected output
+### Stop or destroy the VM
 
 ```bash
+vagrant halt      # stop (keeps disk)
+vagrant destroy   # remove completely
+```
+
+---
+
+### Testing
+
+All `curl` tests can be run from your **host machine**.
+All `kubectl` tests can be run either from the host or inside the VM.
+
+#### 1. Verify the node is Ready
+
+```bash
+vagrant ssh abel-mqaS -c "kubectl get nodes"
+```
+
+Expected:
+
+```
+NAME        STATUS   ROLES                  AGE   VERSION
+abel-mqas   Ready    control-plane,master   Xm    v1.xx.x+k3s1
+```
+
+---
+
+#### 2. Verify all pods are Running
+
+```bash
+vagrant ssh abel-mqaS -c "kubectl get pods -o wide"
+```
+
+Expected: 5 pods total — all in `Running` state:
+
+```
 NAME                    READY   STATUS    RESTARTS   AGE
-app1-xxx                1/1     Running   0          Xm
-app2-xxx                1/1     Running   0          Xm
-app2-xxx                1/1     Running   0          Xm
-app2-xxx                1/1     Running   0          Xm
-app3-xxx                1/1     Running   0          Xm
+app1-xxxxxxxxx-xxxxx    1/1     Running   0          Xm
+app2-xxxxxxxxx-xxxxx    1/1     Running   0          Xm
+app2-xxxxxxxxx-xxxxx    1/1     Running   0          Xm
+app2-xxxxxxxxx-xxxxx    1/1     Running   0          Xm
+app3-xxxxxxxxx-xxxxx    1/1     Running   0          Xm
 ```
 
-### Test routing
+---
+
+#### 3. Verify app2 has exactly 3 replicas
 
 ```bash
-curl -H "Host: app1.com" http://192.168.56.110   # → green page
-curl -H "Host: app2.com" http://192.168.56.110   # → blue page
-curl http://192.168.56.110                        # → orange page (default)
+vagrant ssh abel-mqaS -c "kubectl get deployment app2"
 ```
 
-### Key concepts learned
+Expected:
+
+```
+NAME   READY   UP-TO-DATE   AVAILABLE   AGE
+app2   3/3     3            3           Xm
+```
+
+---
+
+#### 4. Verify the Ingress is configured
+
+```bash
+vagrant ssh abel-mqaS -c "kubectl get ingress"
+```
+
+Expected:
+
+```
+NAME             CLASS     HOSTS                ADDRESS          PORTS   AGE
+ingress-rules    traefik   app1.com,app2.com    192.168.56.110   80      Xm
+ingress-default  traefik   *                    192.168.56.110   80      Xm
+```
+
+---
+
+#### 5. Test host-based routing
+
+```bash
+# App 1 — green page
+curl -H "Host: app1.com" http://192.168.56.110
+# Expected: HTML containing "App 1"
+
+# App 2 — blue page
+curl -H "Host: app2.com" http://192.168.56.110
+# Expected: HTML containing "App 2"
+
+# App 3 — default, no Host header
+curl http://192.168.56.110
+# Expected: HTML containing "App 3"
+
+# App 3 — default, unrecognized host
+curl -H "Host: anything.com" http://192.168.56.110
+# Expected: HTML containing "App 3"
+
+curl -H "Host: notarealsite.io" http://192.168.56.110
+# Expected: HTML containing "App 3"
+```
+
+---
+
+#### 6. Test app2 load balancing across replicas
+
+Run the same request multiple times — Kubernetes distributes traffic across all
+3 replicas:
+
+```bash
+for i in $(seq 1 6); do
+  curl -s -H "Host: app2.com" http://192.168.56.110 | grep "<h1>"
+done
+```
+
+To see which pod is actually serving each request, check pod logs:
+
+```bash
+vagrant ssh abel-mqaS -c "kubectl logs -l app=app2 --prefix=true"
+```
+
+---
+
+### Expected Final State
+
+| Check                         | Expected                     |
+| ----------------------------- | ---------------------------- |
+| `kubectl get nodes`           | 1 node `Ready`               |
+| `kubectl get pods`            | 5 pods `Running` (1 + 3 + 1) |
+| `kubectl get deployment app2` | `READY 3/3`                  |
+| `kubectl get ingress`         | 2 ingress objects            |
+| `curl -H "Host: app1.com"`    | App 1 — green page           |
+| `curl -H "Host: app2.com"`    | App 2 — blue page            |
+| `curl` (no host)              | App 3 — orange page          |
+| `curl -H "Host: anything"`    | App 3 — orange page          |
+
+---
+
+### Troubleshooting
+
+**Pods stuck in `ContainerCreating`**
+The nginx image is being pulled. Wait 30–60 seconds and check again:
+
+```bash
+vagrant ssh abel-mqaS -c "kubectl describe pod <pod-name>"
+```
+
+**curl returns 404**
+Traefik does not support the `defaultBackend` field — unmatched hosts return 404
+instead of falling back. This is handled by the `ingress-default` object with
+`host: ""` and low priority. Verify it exists:
+
+```bash
+vagrant ssh abel-mqaS -c "kubectl get ingress ingress-default"
+```
+
+**curl returns connection refused**
+K3s or Traefik may still be starting. Wait a minute and retry. You can check:
+
+```bash
+vagrant ssh abel-mqaS -c "sudo systemctl status k3s"
+vagrant ssh abel-mqaS -c "kubectl get pods -n kube-system"
+```
+
+---
+
+### Key Concepts
 
 **ConfigMap** — stores configuration data as key-value pairs. Used here to inject
-custom HTML into nginx containers without rebuilding the image.
+custom HTML into nginx containers without rebuilding the image. Mounted as a volume
+at `/usr/share/nginx/html`.
 
-**Ingress** — exposes HTTP routes from outside the cluster to services inside.
-Routes based on HOST header, path, or both.
+**Ingress** — exposes HTTP routes from outside the cluster to Services inside.
+Traefik watches all Ingress resources and builds its routing table from them.
+Routes are matched by `Host` header, path, or both.
 
-**Replicas** — multiple identical pods running simultaneously. App2 runs 3 replicas
-for load balancing. Kubernetes automatically distributes traffic between them.
+**Replicas** — multiple identical pods running simultaneously. App 2 runs 3 replicas.
+Kubernetes distributes incoming traffic across all of them via the Service.
 
 **Labels and Selectors** — the glue between Deployments, Services, and Ingress.
-A Service finds its pods by matching labels defined in the Deployment.
+A Service finds its target pods by matching the `app: <name>` label defined in
+the Deployment's pod template.
+
+---
+
+### References
+
+- [Vagrant docs](https://developer.hashicorp.com/vagrant/docs)
+- [K3s Quick Start](https://docs.k3s.io/quick-start)
+- [Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+- [Traefik Kubernetes Ingress](https://doc.traefik.io/traefik/providers/kubernetes-ingress/)
+- [Kubernetes ConfigMaps](https://kubernetes.io/docs/concepts/configuration/configmap/)
+
+---
 
 ## Part 3: K3d and Argo CD
 
