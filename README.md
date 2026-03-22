@@ -174,8 +174,8 @@ vagrant status
 Expected output:
 
 ```
-abel-mqaS   running (vmware_desktop)
-abel-mqaSW  running (vmware_desktop)
+<login>S   running (vmware_desktop)
+<login>SW  running (vmware_desktop)
 ```
 
 ---
@@ -183,8 +183,8 @@ abel-mqaSW  running (vmware_desktop)
 #### 2. Verify passwordless SSH access
 
 ```bash
-vagrant ssh abel-mqaS  -c "echo 'SSH OK'"
-vagrant ssh abel-mqaSW -c "echo 'SSH OK'"
+vagrant ssh <login>S  -c "echo 'SSH OK'"
+vagrant ssh <login>SW -c "echo 'SSH OK'"
 ```
 
 Both commands should print `SSH OK` without asking for a password.
@@ -194,11 +194,11 @@ Both commands should print `SSH OK` without asking for a password.
 #### 3. Verify network interfaces and IPs
 
 ```bash
-vagrant ssh abel-mqaS  -c "ip a show eth1"
-vagrant ssh abel-mqaSW -c "ip a show eth1"
+vagrant ssh <login>S  -c "ip a show eth1"
+vagrant ssh <login>SW -c "ip a show eth1"
 ```
 
-Expected: `abel-mqaS` shows `192.168.56.110` and `abel-mqaSW` shows `192.168.56.111`
+Expected: `<login>S` shows `192.168.56.110` and `<login>SW` shows `192.168.56.111`
 on `eth1`. If the interface name differs on your system (e.g., `enp0s8`), adjust accordingly.
 
 ---
@@ -206,15 +206,15 @@ on `eth1`. If the interface name differs on your system (e.g., `enp0s8`), adjust
 #### 4. Verify both nodes are registered and Ready
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl get nodes -o wide"
+vagrant ssh <login>S -c "kubectl get nodes -o wide"
 ```
 
 Expected output:
 
 ```
 NAME          STATUS   ROLES                  AGE   VERSION        INTERNAL-IP
-abel-mqas     Ready    control-plane,master   Xm    v1.xx.x+k3s1   192.168.56.110
-abel-mqasw    Ready    <none>                 Xm    v1.xx.x+k3s1   192.168.56.111
+<login>s     Ready    control-plane,master   Xm    v1.xx.x+k3s1   192.168.56.110
+<login>sw    Ready    <none>                 Xm    v1.xx.x+k3s1   192.168.56.111
 ```
 
 Both nodes must show `Ready`. If the agent shows `NotReady`, wait 30 seconds and retry —
@@ -226,10 +226,10 @@ it may still be syncing.
 
 ```bash
 # Controller
-vagrant ssh abel-mqaS  -c "sudo systemctl is-active k3s"
+vagrant ssh <login>S  -c "sudo systemctl is-active k3s"
 
 # Agent
-vagrant ssh abel-mqaSW -c "sudo systemctl is-active k3s-agent"
+vagrant ssh <login>SW -c "sudo systemctl is-active k3s-agent"
 ```
 
 Both should return `active`.
@@ -239,14 +239,14 @@ Both should return `active`.
 #### 6. Verify the correct IPs are used by K3s
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{\" \"}{.status.addresses[?(@.type==\"InternalIP\")].address}{\"\\n\"}{end}'"
+vagrant ssh <login>S -c "kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{\" \"}{.status.addresses[?(@.type==\"InternalIP\")].address}{\"\\n\"}{end}'"
 ```
 
 Expected output:
 
 ```
-abel-mqas   192.168.56.110
-abel-mqasw  192.168.56.111
+<login>s   192.168.56.110
+<login>sw  192.168.56.111
 ```
 
 If K3s picked up the NAT interface IP (typically `10.x.x.x`), the `--flannel-iface`
@@ -257,7 +257,7 @@ flag is not working correctly — verify the interface name inside the VM with `
 #### 7. End-to-end cluster test — deploy and schedule a pod
 
 ```bash
-vagrant ssh abel-mqaS -c "
+vagrant ssh <login>S -c "
   kubectl run test-pod --image=nginx --restart=Never
   sleep 10
   kubectl get pod test-pod -o wide
@@ -410,7 +410,7 @@ vagrant up
 
 This will:
 
-1. Create and boot the VM (`abel-mqaS`) at `192.168.56.110`
+1. Create and boot the VM (`<login>S`) at `192.168.56.110`
 2. Install K3s in server mode
 3. Wait for the API server to be ready
 4. Apply all manifests from `confs/`
@@ -418,7 +418,7 @@ This will:
 ### SSH into the VM
 
 ```bash
-vagrant ssh abel-mqaS
+vagrant ssh <login>S
 ```
 
 ### Stop or destroy the VM
@@ -438,14 +438,14 @@ All `kubectl` tests can be run either from the host or inside the VM.
 #### 1. Verify the node is Ready
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl get nodes"
+vagrant ssh <login>S -c "kubectl get nodes"
 ```
 
 Expected:
 
 ```
 NAME        STATUS   ROLES                  AGE   VERSION
-abel-mqas   Ready    control-plane,master   Xm    v1.xx.x+k3s1
+<login>s   Ready    control-plane,master   Xm    v1.xx.x+k3s1
 ```
 
 ---
@@ -453,7 +453,7 @@ abel-mqas   Ready    control-plane,master   Xm    v1.xx.x+k3s1
 #### 2. Verify all pods are Running
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl get pods -o wide"
+vagrant ssh <login>S -c "kubectl get pods -o wide"
 ```
 
 Expected: 5 pods total — all in `Running` state:
@@ -472,7 +472,7 @@ app3-xxxxxxxxx-xxxxx    1/1     Running   0          Xm
 #### 3. Verify app2 has exactly 3 replicas
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl get deployment app2"
+vagrant ssh <login>S -c "kubectl get deployment app2"
 ```
 
 Expected:
@@ -487,7 +487,7 @@ app2   3/3     3            3           Xm
 #### 4. Verify the Ingress is configured
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl get ingress"
+vagrant ssh <login>S -c "kubectl get ingress"
 ```
 
 Expected:
@@ -539,7 +539,7 @@ done
 To see which pod is actually serving each request, check pod logs:
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl logs -l app=app2 --prefix=true"
+vagrant ssh <login>S -c "kubectl logs -l app=app2 --prefix=true"
 ```
 
 ---
@@ -565,7 +565,7 @@ vagrant ssh abel-mqaS -c "kubectl logs -l app=app2 --prefix=true"
 The nginx image is being pulled. Wait 30–60 seconds and check again:
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl describe pod <pod-name>"
+vagrant ssh <login>S -c "kubectl describe pod <pod-name>"
 ```
 
 **curl returns 404**
@@ -574,15 +574,15 @@ instead of falling back. This is handled by the `ingress-default` object with
 `host: ""` and low priority. Verify it exists:
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl get ingress ingress-default"
+vagrant ssh <login>S -c "kubectl get ingress ingress-default"
 ```
 
 **curl returns connection refused**
 K3s or Traefik may still be starting. Wait a minute and retry. You can check:
 
 ```bash
-vagrant ssh abel-mqaS -c "sudo systemctl status k3s"
-vagrant ssh abel-mqaS -c "kubectl get pods -n kube-system"
+vagrant ssh <login>S -c "sudo systemctl status k3s"
+vagrant ssh <login>S -c "kubectl get pods -n kube-system"
 ```
 
 ---
