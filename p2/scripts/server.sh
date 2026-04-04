@@ -10,6 +10,10 @@ curl -sfL https://get.k3s.io | \
     --write-kubeconfig-mode=644" \
   sh -
 
-cp /var/lib/rancher/k3s/server/node-token /vagrant/node-token
+until kubectl get nodes 2>/dev/null | grep -q "Ready"; do
+  sleep 3
+done
 
-echo "K3s controller is ready!"
+kubectl apply -f /vagrant/confs/
+
+echo "K3s server is ready!"
