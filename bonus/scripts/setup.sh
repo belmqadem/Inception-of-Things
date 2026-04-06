@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+CLUSTER_NAME="iot-cluster-bonus"
 ARGOCD_NAMESPACE="argocd"
 DEV_NAMESPACE="dev"
 GITLAB_NAMESPACE="gitlab"
@@ -8,24 +9,24 @@ GITLAB_REPO="http://gitlab-webservice-default.gitlab.svc.cluster.local:8181/root
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # ── Cluster ───────────────────────────────────────────────────────────────────
-echo "[1/6] Creating K3d cluster..."
-k3d cluster create "iot-cluster-bonus" --port "8888:8888@loadbalancer" --wait
+echo "[1] Creating K3d cluster..."
+k3d cluster delete "$CLUSTER_NAME" 2>/dev/null || true
+k3d cluster create "$CLUSTER_NAME" --port "8888:8888@loadbalancer" --wait
 
 # ── Namespaces ────────────────────────────────────────────────────────────────
-echo "[2/6] Creating namespaces..."
-for NS in "$ARGOCD_NAMESPACE" "$DEV_NAMESPACE" "$GITLAB_NAMESPACE"; do
-  kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
-done
+echo "[2] Creating namespaces..."
+kubectl create namespace "$ARGOCD_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace "$DEV_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace "$GITLAB_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
 # ── GitLab ────────────────────────────────────────────────────────────────────
-echo "[3/6] Installing GitLab..."
+echo "[3] Installing GitLab..."
 helm repo add gitlab https://charts.gitlab.io/ 2>/dev/null || true
-helm repo update --quiet
+helm repo update
 helm upgrade --install gitlab gitlab/gitlab \
   --namespace "$GITLAB_NAMESPACE" \
   --values "$SCRIPT_DIR/../confs/gitlab-values.yaml" \
-  --timeout 600s \
-  --quiet
+  --timeout 600s
 
 echo "      Waiting for GitLab to be ready (this takes a few minutes)..."
 kubectl wait --for=condition=ready pod \
@@ -49,13 +50,11 @@ echo "  Login: root / $GITLAB_PASSWORD"
 echo ""
 echo "  Please:"
 echo "  1. Create a new project named: abel-mqa-iot (Public)"
-echo "  2. In a new terminal, push the manifests:"
+echo "  2. In a new terminal, run:"
 echo ""
-echo "     cd $(dirname "$SCRIPT_DIR")"
-echo "     git init && git add manifests/"
-echo "     git commit -m 'v1'"
-echo "     git remote add gitlab http://root:<token>@localhost:8181/root/abel-mqa-iot.git"
-echo "     git push gitlab main"
+echo "     cd $SCRIPT_DIR/.."
+echo "     git remote add gitlab http://root:$GITLAB_PASSWORD@localhost:8181/root/abel-mqa-iot.git"
+echo "     git subtree push --prefix bonus/manifests gitlab main"
 echo "──────────────────────────────────────────────────────"
 echo ""
 read -rp "Press ENTER once you have pushed the manifests..."
@@ -63,7 +62,7 @@ read -rp "Press ENTER once you have pushed the manifests..."
 kill $GITLAB_PF_PID 2>/dev/null || true
 
 # ── Argo CD ───────────────────────────────────────────────────────────────────
-echo "[4/6] Installing Argo CD..."
+echo "[4] Installing Argo CD..."
 kubectl apply -n "$ARGOCD_NAMESPACE" \
   --server-side \
   -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml \
@@ -74,7 +73,7 @@ kubectl wait --for=condition=available deployment/argocd-server \
   -n "$ARGOCD_NAMESPACE" --timeout=600s
 
 # ── Configure Argo CD → GitLab ────────────────────────────────────────────────
-echo "[5/6] Connecting Argo CD to local GitLab..."
+echo "[5] Connecting Argo CD to local GitLab..."
 kubectl port-forward svc/argocd-server -n "$ARGOCD_NAMESPACE" 8080:443 &
 ARGOCD_PF_PID=$!
 sleep 5
@@ -96,7 +95,7 @@ argocd repo add "$GITLAB_REPO" \
 kill $ARGOCD_PF_PID 2>/dev/null || true
 
 # ── Deploy App ────────────────────────────────────────────────────────────────
-echo "[6/6] Deploying app via Argo CD..."
+echo "[6] Deploying app via Argo CD..."
 kubectl apply -f "$SCRIPT_DIR/../confs/dev-app.yaml"
 
 until kubectl get pods -n "$DEV_NAMESPACE" 2>/dev/null | grep -q "Running"; do
