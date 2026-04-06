@@ -1,0 +1,58 @@
+global:
+  edition: ce
+  hosts:
+    domain: gitlab.local
+    https: false
+    gitlab:
+      name: gitlab.local
+      https: false
+  ingress:
+    configureCertmanager: false
+    tls:
+      enabled: false
+  postgresql:
+    manage: true
+
+certmanager-issuer:
+  email: admin@gitlab.local
+
+nginx-ingress:
+  enabled: false
+
+prometheus:
+  install: false
+
+gitlab-runner:
+  install: false
+
+gitlab:
+  webservice:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 300m
+        memory: 1.5G
+  sidekiq:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 900M
+  gitaly:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200M
+
+minio:
+  resources:
+    requests:
+      memory: 128M
+
+redis:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64M
