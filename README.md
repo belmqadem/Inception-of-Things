@@ -42,10 +42,10 @@ This part sets up a minimal Kubernetes cluster using K3s across two Vagrant-mana
 virtual machines. One machine acts as the control plane (server) and the other as a
 worker node (agent).
 
-| Machine     | Role       | IP             |
-| ----------- | ---------- | -------------- |
-| `<login>S`  | Controller | 192.168.56.110 |
-| `<login>SW` | Agent      | 192.168.56.111 |
+| Machine      | Role       | IP             |
+| ------------ | ---------- | -------------- |
+| `abel-mqaS`  | Controller | 192.168.56.110 |
+| `abel-mqaSW` | Agent      | 192.168.56.111 |
 
 ---
 
@@ -118,21 +118,21 @@ vagrant up
 This will:
 
 1. Create and boot both VMs
-2. Install K3s on the controller (`<login>S`)
+2. Install K3s on the controller (`abel-mqaS`)
 3. Share the cluster token via `/vagrant/node-token`
-4. Install K3s agent on the worker (`<login>SW`) and join the cluster
+4. Install K3s agent on the worker (`abel-mqaSW`) and join the cluster
 
 #### SSH into a machine
 
 ```bash
-vagrant ssh <login>S   # controller
-vagrant ssh <login>SW  # agent
+vagrant ssh abel-mqaS   # controller
+vagrant ssh abel-mqaSW  # agent
 ```
 
 #### Verify the cluster
 
 ```bash
-vagrant ssh <login>S
+vagrant ssh abel-mqaS
 kubectl get nodes -o wide
 ```
 
@@ -152,12 +152,12 @@ After a successful `vagrant up`, SSHing into the controller and running
 
 ```
 NAME          STATUS   ROLES                  AGE   VERSION
-<login>s     Ready    control-plane,master   Xm    v1.xx.x+k3s1
-<login>sw    Ready    <none>                 Xm    v1.xx.x+k3s1
+abel-mqas     Ready    control-plane,master   Xm    v1.xx.x+k3s1
+abel-mqasw    Ready    <none>                 Xm    v1.xx.x+k3s1
 ```
 
-> **Note:** Linux lowercases hostnames automatically — `<login>S` displays as
-> `<login>s` and `<login>SW` as `<login>sw`. This is expected behavior.
+> **Note:** Linux lowercases hostnames automatically — `abel-mqaS` displays as
+> `abel-mqas` and `abel-mqaSW` as `abel-mqasw`. This is expected behavior.
 
 ---
 
@@ -174,8 +174,8 @@ vagrant status
 Expected output:
 
 ```
-<login>S   running (vmware_desktop)
-<login>SW  running (vmware_desktop)
+abel-mqaS   running (vmware_desktop)
+abel-mqaSW  running (vmware_desktop)
 ```
 
 ---
@@ -183,8 +183,8 @@ Expected output:
 #### 2. Verify passwordless SSH access
 
 ```bash
-vagrant ssh <login>S  -c "echo 'SSH OK'"
-vagrant ssh <login>SW -c "echo 'SSH OK'"
+vagrant ssh abel-mqaS  -c "echo 'SSH OK'"
+vagrant ssh abel-mqaSW -c "echo 'SSH OK'"
 ```
 
 Both commands should print `SSH OK` without asking for a password.
@@ -194,11 +194,11 @@ Both commands should print `SSH OK` without asking for a password.
 #### 3. Verify network interfaces and IPs
 
 ```bash
-vagrant ssh <login>S  -c "ip a show eth1"
-vagrant ssh <login>SW -c "ip a show eth1"
+vagrant ssh abel-mqaS  -c "ip a show eth1"
+vagrant ssh abel-mqaSW -c "ip a show eth1"
 ```
 
-Expected: `<login>S` shows `192.168.56.110` and `<login>SW` shows `192.168.56.111`
+Expected: `abel-mqaS` shows `192.168.56.110` and `abel-mqaSW` shows `192.168.56.111`
 on `eth1`. If the interface name differs on your system (e.g., `enp0s8`), adjust accordingly.
 
 ---
@@ -206,15 +206,15 @@ on `eth1`. If the interface name differs on your system (e.g., `enp0s8`), adjust
 #### 4. Verify both nodes are registered and Ready
 
 ```bash
-vagrant ssh <login>S -c "kubectl get nodes -o wide"
+vagrant ssh abel-mqaS -c "kubectl get nodes -o wide"
 ```
 
 Expected output:
 
 ```
 NAME          STATUS   ROLES                  AGE   VERSION        INTERNAL-IP
-<login>s     Ready    control-plane,master   Xm    v1.xx.x+k3s1   192.168.56.110
-<login>sw    Ready    <none>                 Xm    v1.xx.x+k3s1   192.168.56.111
+abel-mqas     Ready    control-plane,master   Xm    v1.xx.x+k3s1   192.168.56.110
+abel-mqasw    Ready    <none>                 Xm    v1.xx.x+k3s1   192.168.56.111
 ```
 
 Both nodes must show `Ready`. If the agent shows `NotReady`, wait 30 seconds and retry —
@@ -226,10 +226,10 @@ it may still be syncing.
 
 ```bash
 # Controller
-vagrant ssh <login>S  -c "sudo systemctl is-active k3s"
+vagrant ssh abel-mqaS  -c "sudo systemctl is-active k3s"
 
 # Agent
-vagrant ssh <login>SW -c "sudo systemctl is-active k3s-agent"
+vagrant ssh abel-mqaSW -c "sudo systemctl is-active k3s-agent"
 ```
 
 Both should return `active`.
@@ -239,14 +239,14 @@ Both should return `active`.
 #### 6. Verify the correct IPs are used by K3s
 
 ```bash
-vagrant ssh <login>S -c "kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{\" \"}{.status.addresses[?(@.type==\"InternalIP\")].address}{\"\\n\"}{end}'"
+vagrant ssh abel-mqaS -c "kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{\" \"}{.status.addresses[?(@.type==\"InternalIP\")].address}{\"\\n\"}{end}'"
 ```
 
 Expected output:
 
 ```
-<login>s   192.168.56.110
-<login>sw  192.168.56.111
+abel-mqas   192.168.56.110
+abel-mqasw  192.168.56.111
 ```
 
 If K3s picked up the NAT interface IP (typically `10.x.x.x`), the `--flannel-iface`
@@ -257,7 +257,7 @@ flag is not working correctly — verify the interface name inside the VM with `
 #### 7. End-to-end cluster test — deploy and schedule a pod
 
 ```bash
-vagrant ssh <login>S -c "
+vagrant ssh abel-mqaS -c "
   kubectl run test-pod --image=nginx --restart=Never
   sleep 10
   kubectl get pod test-pod -o wide
@@ -282,32 +282,6 @@ This confirms the controller can schedule workloads and the agent can run them.
 | `k3s` service       | `active` on controller     |
 | `k3s-agent` service | `active` on agent          |
 | Test pod            | Reaches `Running` state    |
-
----
-
-### Troubleshooting
-
-**Agent fails to join the cluster**
-The agent waits up to several minutes for the token file. If provisioning times out,
-re-run provisioning manually:
-
-```bash
-vagrant provision <login>SW
-```
-
-**Wrong IP used by K3s**
-If nodes show an unexpected internal IP, verify the interface name inside the VM:
-
-```bash
-vagrant ssh <login>S
-ip a
-```
-
-Then update `--flannel-iface` in the controller script to match the correct interface name.
-
-**VMware provider not found**
-Replace the `vmware_desktop` provider block in the Vagrantfile with your provider
-(e.g., `virtualbox`). No other changes are needed.
 
 ---
 
@@ -410,7 +384,7 @@ vagrant up
 
 This will:
 
-1. Create and boot the VM (`<login>S`) at `192.168.56.110`
+1. Create and boot the VM (`abel-mqaS`) at `192.168.56.110`
 2. Install K3s in server mode
 3. Wait for the API server to be ready
 4. Apply all manifests from `confs/`
@@ -418,7 +392,7 @@ This will:
 ### SSH into the VM
 
 ```bash
-vagrant ssh <login>S
+vagrant ssh abel-mqaS
 ```
 
 ### Stop or destroy the VM
@@ -438,14 +412,14 @@ All `kubectl` tests can be run either from the host or inside the VM.
 #### 1. Verify the node is Ready
 
 ```bash
-vagrant ssh <login>S -c "kubectl get nodes"
+vagrant ssh abel-mqaS -c "kubectl get nodes"
 ```
 
 Expected:
 
 ```
 NAME        STATUS   ROLES                  AGE   VERSION
-<login>s   Ready    control-plane,master   Xm    v1.xx.x+k3s1
+abel-mqas   Ready    control-plane,master   Xm    v1.xx.x+k3s1
 ```
 
 ---
@@ -453,7 +427,7 @@ NAME        STATUS   ROLES                  AGE   VERSION
 #### 2. Verify all pods are Running
 
 ```bash
-vagrant ssh <login>S -c "kubectl get pods -o wide"
+vagrant ssh abel-mqaS -c "kubectl get pods -o wide"
 ```
 
 Expected: 5 pods total — all in `Running` state:
@@ -472,7 +446,7 @@ app3-xxxxxxxxx-xxxxx    1/1     Running   0          Xm
 #### 3. Verify app2 has exactly 3 replicas
 
 ```bash
-vagrant ssh <login>S -c "kubectl get deployment app2"
+vagrant ssh abel-mqaS -c "kubectl get deployment app2"
 ```
 
 Expected:
@@ -487,7 +461,7 @@ app2   3/3     3            3           Xm
 #### 4. Verify the Ingress is configured
 
 ```bash
-vagrant ssh <login>S -c "kubectl get ingress"
+vagrant ssh abel-mqaS -c "kubectl get ingress"
 ```
 
 Expected:
@@ -539,7 +513,7 @@ done
 To see which pod is actually serving each request, check pod logs:
 
 ```bash
-vagrant ssh <login>S -c "kubectl logs -l app=app2 --prefix=true"
+vagrant ssh abel-mqaS -c "kubectl logs -l app=app2 --prefix=true"
 ```
 
 ---
@@ -565,7 +539,7 @@ vagrant ssh <login>S -c "kubectl logs -l app=app2 --prefix=true"
 The nginx image is being pulled. Wait 30–60 seconds and check again:
 
 ```bash
-vagrant ssh <login>S -c "kubectl describe pod <pod-name>"
+vagrant ssh abel-mqaS -c "kubectl describe pod <pod-name>"
 ```
 
 **curl returns 404**
@@ -574,15 +548,15 @@ instead of falling back. This is handled by the `ingress-default` object with
 `host: ""` and low priority. Verify it exists:
 
 ```bash
-vagrant ssh <login>S -c "kubectl get ingress ingress-default"
+vagrant ssh abel-mqaS -c "kubectl get ingress ingress-default"
 ```
 
 **curl returns connection refused**
 K3s or Traefik may still be starting. Wait a minute and retry. You can check:
 
 ```bash
-vagrant ssh <login>S -c "sudo systemctl status k3s"
-vagrant ssh <login>S -c "kubectl get pods -n kube-system"
+vagrant ssh abel-mqaS -c "sudo systemctl status k3s"
+vagrant ssh abel-mqaS -c "kubectl get pods -n kube-system"
 ```
 
 ---
@@ -618,8 +592,554 @@ the Deployment's pod template.
 
 ## Part 3: K3d and Argo CD
 
-_In progress_
+### Overview
 
-## Bonus: Gitlab
+K3d runs K3s inside Docker containers — no VMs needed. This part sets up a K3d
+cluster with Argo CD watching a public GitHub repository. Any change pushed to the
+repo is automatically deployed to the cluster.
 
-_In progress_
+| Namespace | Contents                        |
+| --------- | ------------------------------- |
+| `argocd`  | Argo CD components              |
+| `dev`     | Application deployed by Argo CD |
+
+---
+
+### Project Structure
+
+```
+p3/
+├── scripts/
+│   ├── install.sh       ← installs dependencies
+│   └── setup.sh         ← creates cluster and deploys everything
+└── confs/
+    └── dev-app.yaml     ← Argo CD Application manifest
+```
+
+The application manifests live in a separate public GitHub repository:
+[github.com/belmqadem/abel-mqa-iot](https://github.com/belmqadem/abel-mqa-iot)
+
+```
+abel-mqa-iot/
+└── manifests/
+    └── deployment.yaml  ← Deployment + Service for valarmo3/playground
+```
+
+---
+
+### How It Works
+
+#### GitOps Flow
+
+```
+GitHub repo (abel-mqa-iot)
+        │
+        │  Argo CD watches for changes (every 3 min)
+        ▼
+   Argo CD (argocd namespace)
+        │
+        │  applies manifests automatically
+        ▼
+   valarmo-playground pod (dev namespace)
+        │
+        ▼
+   http://localhost:8888
+```
+
+#### K3d Cluster
+
+The cluster is created with a single port mapping: `8888:8888@loadbalancer`. This
+forwards port 8888 on your machine directly to port 8888 inside the cluster, where the
+app's LoadBalancer Service listens.
+
+#### Argo CD Application
+
+The `dev-app.yaml` manifest tells Argo CD:
+
+- **Where to look:** `github.com/belmqadem/abel-mqa-iot`, path `manifests/`
+- **Where to deploy:** `dev` namespace
+- **Sync policy:** automated with `prune` and `selfHeal` — the cluster always
+  mirrors the repo, and drifted resources are corrected automatically
+
+---
+
+### Usage
+
+#### Install dependencies
+
+```bash
+cd p3
+./scripts/install.sh
+```
+
+#### Start the cluster and deploy everything
+
+```bash
+./scripts/setup.sh
+```
+
+This will:
+
+1. Create a K3d cluster named `iot-cluster`
+2. Create `argocd` and `dev` namespaces
+3. Install Argo CD and wait for it to be ready
+4. Apply `confs/dev-app.yaml` to register the app with Argo CD
+5. Wait until the pod is running in `dev`
+
+#### Tear down
+
+```bash
+k3d cluster delete iot-cluster
+```
+
+---
+
+### Testing
+
+#### 1. Verify the cluster is running
+
+```bash
+k3d cluster list
+```
+
+Expected:
+
+```
+NAME          SERVERS   AGENTS   LOADBALANCER
+iot-cluster   1/1       0/0      true
+```
+
+---
+
+#### 2. Verify namespaces exist
+
+```bash
+kubectl get ns
+```
+
+Expected output includes:
+
+```
+argocd   Active
+dev      Active
+```
+
+---
+
+#### 3. Verify Argo CD is running
+
+```bash
+kubectl get pods -n argocd
+```
+
+All pods should show `Running` or `Completed`.
+
+---
+
+#### 4. Verify the app is synced and healthy
+
+```bash
+kubectl get applications -n argocd
+```
+
+Expected:
+
+```
+NAME                 SYNC STATUS   HEALTH STATUS
+valarmo-playground   Synced        Healthy
+```
+
+---
+
+#### 5. Verify the pod is running in dev
+
+```bash
+kubectl get pods -n dev
+```
+
+Expected:
+
+```
+NAME                                  READY   STATUS    RESTARTS   AGE
+valarmo-playground-xxxxxxxxxx-xxxxx   1/1     Running   0          Xm
+```
+
+---
+
+#### 6. Verify the app is reachable
+
+```bash
+curl http://localhost:8888/
+```
+
+Expected:
+
+```json
+{ "status": "ok", "message": "v1" }
+```
+
+---
+
+#### 7. Test GitOps — switch versions
+
+Update the image tag in the GitHub repo:
+
+```bash
+cd abel-mqa-iot
+# Switch to v2
+sed -i 's/valarmo3\/playground:v1/valarmo3\/playground:v2/g' manifests/deployment.yaml
+git add . && git commit -m "switch to v2" && git push
+
+# Wait ~3 minutes for Argo CD to sync, then:
+curl http://localhost:8888/
+# {"status":"ok", "message": "v2"}
+
+# Switch back to v1
+sed -i 's/valarmo3\/playground:v2/valarmo3\/playground:v1/g' manifests/deployment.yaml
+git add . && git commit -m "switch back to v1" && git push
+```
+
+---
+
+### Expected Final State
+
+| Check                                | Expected              |
+| ------------------------------------ | --------------------- |
+| `k3d cluster list`                   | `iot-cluster` running |
+| `kubectl get ns`                     | `argocd`, `dev` exist |
+| `kubectl get applications -n argocd` | `Synced` + `Healthy`  |
+| `kubectl get pods -n dev`            | 1 pod `Running`       |
+| `curl http://localhost:8888/`        | `{"status":"ok",...}` |
+
+---
+
+### Argo CD UI (optional)
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+
+# Get admin password
+kubectl get secret argocd-initial-admin-secret \
+  -n argocd \
+  -o jsonpath='{.data.password}' | base64 --decode && echo
+```
+
+Open `https://localhost:8080` — login with `admin` and the password above.
+
+---
+
+### Key Concepts
+
+**K3d** — runs K3s nodes as Docker containers on your machine. Faster to spin up
+than VMs, ideal for local development and CI.
+
+**Argo CD** — a GitOps continuous delivery tool. It continuously compares the
+desired state (your Git repo) with the actual state (your cluster) and syncs them.
+
+**GitOps** — the practice of using Git as the single source of truth for
+infrastructure and application configuration. No manual `kubectl apply` needed —
+push to Git and the cluster updates itself.
+
+---
+
+### References
+
+- [K3d docs](https://k3d.io)
+- [Argo CD docs](https://argo-cd.readthedocs.io)
+- [Argo CD Application CRD](https://argo-cd.readthedocs.io/en/stable/operator-manual/application.yaml)
+
+---
+
+## Bonus: GitLab
+
+### Overview
+
+This part extends Part 3 by replacing GitHub with a **self-hosted GitLab instance**
+running inside the same K3d cluster. Argo CD now watches the local GitLab repo
+instead of GitHub — everything stays on your machine.
+
+| Namespace | Contents                        |
+| --------- | ------------------------------- |
+| `argocd`  | Argo CD components              |
+| `dev`     | Application deployed by Argo CD |
+| `gitlab`  | Self-hosted GitLab CE instance  |
+
+---
+
+### Project Structure
+
+```
+bonus/
+├── scripts/
+│   ├── install.sh          ← installs dependencies
+│   └── setup.sh            ← creates cluster, installs GitLab + Argo CD
+├── confs/
+│   ├── gitlab-values.yaml  ← GitLab Helm chart configuration
+│   └── dev-app.yaml        ← Argo CD Application (points to local GitLab)
+└── manifests/
+    └── deployment.yaml     ← app manifest (pushed to local GitLab)
+```
+
+---
+
+### How It Works
+
+#### GitOps Flow (with local GitLab)
+
+```
+Local GitLab (gitlab namespace, port 8181)
+        │
+        │  Argo CD watches via in-cluster DNS
+        ▼
+   Argo CD (argocd namespace)
+        │
+        │  applies manifests automatically
+        ▼
+   valarmo-playground pod (dev namespace)
+        │
+        ▼
+   http://localhost:8888
+```
+
+#### Why In-Cluster DNS for Argo CD → GitLab
+
+Argo CD runs inside the cluster and cannot use `localhost:8181` (that's only your
+machine's port-forward). Instead it uses the Kubernetes internal service DNS name:
+
+```
+http://gitlab-webservice-default.gitlab.svc.cluster.local:8181
+```
+
+This resolves directly to the GitLab webservice pod from anywhere inside the cluster.
+
+#### GitLab Installation
+
+GitLab is installed via its official Helm chart with a minimal configuration:
+
+- Community Edition (`ce`)
+- No HTTPS (local dev only)
+- cert-manager, nginx-ingress, prometheus, and gitlab-runner all disabled
+- Resource requests reduced to fit comfortably within 16 GB RAM alongside the
+  rest of the cluster
+
+#### Setup Flow
+
+The `setup.sh` script pauses after GitLab is ready and asks you to manually create
+the project and push the manifests. This is necessary because creating a GitLab
+project and generating an access token cannot be fully automated without the API,
+which requires the instance to be fully initialized first.
+
+---
+
+### Usage
+
+#### Install dependencies
+
+```bash
+cd bonus
+./scripts/install.sh
+```
+
+#### Start everything
+
+```bash
+./scripts/setup.sh
+```
+
+The script will:
+
+1. Create a K3d cluster named `iot-cluster-bonus`
+2. Create `argocd`, `dev`, and `gitlab` namespaces
+3. Install GitLab via Helm and wait for it to be ready
+4. **Pause** — print the GitLab URL, credentials, and instructions to push manifests
+5. Install Argo CD and wait for it to be ready
+6. Register the local GitLab repo with Argo CD
+7. Apply `confs/dev-app.yaml` and wait for the app to be running
+
+#### During the pause (step 4)
+
+Open `http://localhost:8181` in your browser, login as `root` with the printed
+password, and:
+
+1. Create a new **Public** project named `abel-mqa-iot`
+2. In a new terminal, run the exact commands printed by the script:
+
+```bash
+# From the root of your Iot repository
+git remote add gitlab http://root:<GITLAB_PASSWORD>@localhost:8181/root/abel-mqa-iot.git
+git subtree push --prefix bonus/manifests gitlab main
+```
+
+> The script prints the exact command with the password already filled in — just copy and paste it.
+
+3. Press ENTER in the setup terminal to continue.
+
+#### Tear down
+
+```bash
+k3d cluster delete iot-cluster-bonus
+```
+
+---
+
+### Testing
+
+#### 1. Verify all three namespaces exist
+
+```bash
+kubectl get ns
+```
+
+Expected output includes:
+
+```
+argocd   Active
+dev      Active
+gitlab   Active
+```
+
+---
+
+#### 2. Verify GitLab is running
+
+```bash
+kubectl get pods -n gitlab
+```
+
+All pods should show `Running` or `Completed`. Key pods to check:
+
+```
+gitlab-webservice-default-xxx   2/2   Running
+gitlab-sidekiq-xxx              1/1   Running
+gitlab-gitaly-0                 1/1   Running
+gitlab-postgresql-0             2/2   Running
+gitlab-redis-master-0           2/2   Running
+```
+
+---
+
+#### 3. Access GitLab UI
+
+```bash
+kubectl port-forward svc/gitlab-webservice-default -n gitlab 8181:8181 &
+```
+
+Open `http://localhost:8181` — login with `root` and the password from:
+
+```bash
+kubectl get secret gitlab-gitlab-initial-root-password \
+  -n gitlab \
+  -o jsonpath='{.data.password}' | base64 --decode && echo
+```
+
+---
+
+#### 4. Verify Argo CD is syncing from local GitLab
+
+```bash
+kubectl get applications -n argocd
+```
+
+Expected:
+
+```
+NAME                 SYNC STATUS   HEALTH STATUS
+valarmo-playground   Synced        Healthy
+```
+
+---
+
+#### 5. Verify the pod is running in dev
+
+```bash
+kubectl get pods -n dev
+```
+
+Expected:
+
+```
+NAME                                  READY   STATUS    RESTARTS   AGE
+valarmo-playground-xxxxxxxxxx-xxxxx   1/1     Running   0          Xm
+```
+
+---
+
+#### 6. Verify the app is reachable
+
+```bash
+curl http://localhost:8888/
+```
+
+Expected:
+
+```json
+{ "status": "ok", "message": "v2" }
+```
+
+---
+
+#### 7. Test GitOps — switch versions via local GitLab
+
+```bash
+# From the root of your Iot repository
+
+# Switch to v2
+sed -i 's/valarmo3\/playground:v1/valarmo3\/playground:v2/g' bonus/manifests/deployment.yaml
+git add bonus/manifests/deployment.yaml && git commit -m "v2"
+git subtree push --prefix bonus/manifests gitlab main
+
+# Wait ~3 minutes for Argo CD to auto-sync, then:
+curl http://localhost:8888/
+# {"status":"ok", "message": "v2"}
+```
+
+You can also watch the sync happen live in the Argo CD UI:
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+```
+
+Open `https://localhost:8080` — the app status will change from `Synced` to
+`OutOfSync` and back to `Synced` as Argo CD picks up the change.
+
+---
+
+### Expected Final State
+
+| Check                                | Expected                     |
+| ------------------------------------ | ---------------------------- |
+| `kubectl get ns`                     | `argocd`, `dev`, `gitlab`    |
+| `kubectl get pods -n gitlab`         | All `Running` or `Completed` |
+| `kubectl get pods -n argocd`         | All `Running`                |
+| `kubectl get pods -n dev`            | 1 pod `Running`              |
+| `kubectl get applications -n argocd` | `Synced` + `Healthy`         |
+| GitLab UI at `localhost:8181`        | Accessible, repo visible     |
+| `curl http://localhost:8888/`        | `{"status":"ok",...}`        |
+| Push v2 to GitLab → curl             | Message changes to `v2`      |
+
+---
+
+### Key Concepts
+
+**Self-hosted GitLab** — a fully featured Git platform running inside your own
+infrastructure. Used here as a drop-in replacement for GitHub, keeping everything
+local.
+
+**Helm** — a package manager for Kubernetes. GitLab's official Helm chart handles
+all the complexity of deploying GitLab's many components (webservice, sidekiq,
+gitaly, postgresql, redis, minio, registry) as a single release.
+
+**In-cluster DNS** — Kubernetes automatically creates DNS entries for every Service
+in the format `<service>.<namespace>.svc.cluster.local`. Used here so Argo CD can
+reach GitLab without going through your Mac's network.
+
+**Root password authentication** — Argo CD authenticates to the local GitLab instance using the `root` user and its auto-generated password, retrieved from the `gitlab-gitlab-initial-root-password` Kubernetes secret. The same credentials are used when pushing manifests via `git subtree`.
+
+---
+
+### References
+
+- [GitLab Helm chart docs](https://docs.gitlab.com/charts/)
+- [GitLab Helm chart values](https://gitlab.com/gitlab-org/charts/gitlab)
+- [Argo CD private repo docs](https://argo-cd.readthedocs.io/en/stable/user-guide/private-repositories/)
+- [K3d docs](https://k3d.io)
