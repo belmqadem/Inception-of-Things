@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: valarmo-playground
-          image: valarmo3/playground:v2
+          image: valarmo3/playground:v1
           ports:
             - containerPort: 8888
 ---
