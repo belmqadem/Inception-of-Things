@@ -323,6 +323,8 @@ p2/
     └── ingress.yaml
 ```
 
+> All routing is handled by a **single** Ingress object in `ingress.yaml`.
+
 ---
 
 ### How It Works
@@ -344,13 +346,17 @@ curl -H "Host: app1.com" http://192.168.56.110
         └── anything else   → app3-service → app3 pod
 ```
 
-### Why Two Ingress Objects
+### Single Ingress with a Catch-All Rule
 
-Traefik does **not** support the `defaultBackend` field of the Ingress spec — it
-returns 404 for unmatched hosts instead of falling back to it. To handle the default
-case, a second Ingress object with `host: ""` and a low router priority (`"1"`) is
-used. Named host rules get a higher default priority and always win for `app1.com`
-and `app2.com`, while everything else falls through to app3.
+All routing is handled by a single Ingress object with three rules:
+
+- `host: app1.com` → routes to `app1-service`
+- `host: app2.com` → routes to `app2-service`
+- no `host` field → catch-all, routes everything else to `app3-service`
+
+Traefik matches rules top to bottom. Named host rules take priority over the
+catch-all, so `app1.com` and `app2.com` always route correctly, and any other
+request falls through to app3.
 
 ### App Differentiation
 
@@ -467,10 +473,12 @@ vagrant ssh abel-mqaS -c "kubectl get ingress"
 Expected:
 
 ```
-NAME             CLASS     HOSTS                ADDRESS          PORTS   AGE
-ingress-rules    traefik   app1.com,app2.com    192.168.56.110   80      Xm
-ingress-default  traefik   *                    192.168.56.110   80      Xm
+NAME            CLASS     HOSTS                ADDRESS          PORTS   AGE
+ingress-rules   traefik   app1.com,app2.com    192.168.56.110   80      Xm
 ```
+
+> The catch-all rule (for app3) has no host field so it does not appear in the
+> HOSTS column, but it is part of the same `ingress-rules` object.
 
 ---
 
@@ -525,7 +533,7 @@ vagrant ssh abel-mqaS -c "kubectl logs -l app=app2 --prefix=true"
 | `kubectl get nodes`           | 1 node `Ready`               |
 | `kubectl get pods`            | 5 pods `Running` (1 + 3 + 1) |
 | `kubectl get deployment app2` | `READY 3/3`                  |
-| `kubectl get ingress`         | 2 ingress objects            |
+| `kubectl get ingress`         | 1 ingress object             |
 | `curl -H "Host: app1.com"`    | App 1 — green page           |
 | `curl -H "Host: app2.com"`    | App 2 — blue page            |
 | `curl` (no host)              | App 3 — orange page          |
@@ -543,12 +551,11 @@ vagrant ssh abel-mqaS -c "kubectl describe pod <pod-name>"
 ```
 
 **curl returns 404**
-Traefik does not support the `defaultBackend` field — unmatched hosts return 404
-instead of falling back. This is handled by the `ingress-default` object with
-`host: ""` and low priority. Verify it exists:
+The catch-all rule in `ingress-rules` should handle all unmatched hosts. Verify
+the ingress is correctly applied:
 
 ```bash
-vagrant ssh abel-mqaS -c "kubectl get ingress ingress-default"
+vagrant ssh abel-mqaS -c "kubectl describe ingress ingress-rules"
 ```
 
 **curl returns connection refused**
