@@ -2,6 +2,20 @@
 
 A 42 School System Administration project that introduces Kubernetes through K3s, K3d, and Argo CD.
 
+---
+
+## Table of Contents
+
+- [Concepts](#concepts)
+- [Requirements](#requirements)
+- [Part 1: K3s and Vagrant](#part-1-k3s-and-vagrant)
+- [Part 2: K3s and Three Simple Applications](#part-2-k3s-and-three-simple-applications)
+- [Part 3: K3d and Argo CD](#part-3-k3d-and-argo-cd)
+- [Bonus: GitLab](#bonus-gitlab)
+- [Authors](#authors)
+
+---
+
 ## Concepts
 
 ### Vagrant
@@ -98,14 +112,6 @@ exists before the agent tries to read it.
 
 ---
 
-### Prerequisites
-
-- [Vagrant](https://developer.hashicorp.com/vagrant/downloads) >= 2.4.0
-- [VMware Desktop](https://www.vmware.com/products/fusion.html) (or replace the provider block in the Vagrantfile)
-- A working internet connection (K3s is downloaded during provisioning)
-
----
-
 ### Usage
 
 #### Start the cluster
@@ -155,9 +161,6 @@ NAME          STATUS   ROLES                  AGE   VERSION
 abel-mqas     Ready    control-plane,master   Xm    v1.xx.x+k3s1
 abel-mqasw    Ready    <none>                 Xm    v1.xx.x+k3s1
 ```
-
-> **Note:** Linux lowercases hostnames automatically — `abel-mqaS` displays as
-> `abel-mqas` and `abel-mqaSW` as `abel-mqasw`. This is expected behavior.
 
 ---
 
@@ -371,14 +374,6 @@ all three pods through the Service. Each request may be served by a different po
 
 ---
 
-### Prerequisites
-
-- [Vagrant](https://developer.hashicorp.com/vagrant/downloads) >= 2.4.0
-- [VMware Desktop](https://www.vmware.com/products/fusion.html) (or replace the provider block)
-- A working internet connection (K3s and nginx image are pulled during provisioning)
-
----
-
 ### Usage
 
 #### Start the VM
@@ -500,9 +495,6 @@ curl http://192.168.56.110
 # App 3 — default, unrecognized host
 curl -H "Host: anything.com" http://192.168.56.110
 # Expected: HTML containing "App 3"
-
-curl -H "Host: notarealsite.io" http://192.168.56.110
-# Expected: HTML containing "App 3"
 ```
 
 ---
@@ -538,33 +530,6 @@ vagrant ssh abel-mqaS -c "kubectl logs -l app=app2 --prefix=true"
 | `curl -H "Host: app2.com"`    | App 2 — blue page            |
 | `curl` (no host)              | App 3 — orange page          |
 | `curl -H "Host: anything"`    | App 3 — orange page          |
-
----
-
-### Troubleshooting
-
-**Pods stuck in `ContainerCreating`**
-The nginx image is being pulled. Wait 30–60 seconds and check again:
-
-```bash
-vagrant ssh abel-mqaS -c "kubectl describe pod <pod-name>"
-```
-
-**curl returns 404**
-The catch-all rule in `ingress-rules` should handle all unmatched hosts. Verify
-the ingress is correctly applied:
-
-```bash
-vagrant ssh abel-mqaS -c "kubectl describe ingress ingress-rules"
-```
-
-**curl returns connection refused**
-K3s or Traefik may still be starting. Wait a minute and retry. You can check:
-
-```bash
-vagrant ssh abel-mqaS -c "sudo systemctl status k3s"
-vagrant ssh abel-mqaS -c "kubectl get pods -n kube-system"
-```
 
 ---
 
@@ -782,7 +747,7 @@ curl http://localhost:8888/
 Expected:
 
 ```json
-{ "status": "ok", "message": "v1" }
+{ "status": "ok", "message": "Hello from v1!" }
 ```
 
 ---
@@ -799,7 +764,7 @@ git add . && git commit -m "switch to v2" && git push
 
 # Wait ~3 minutes for Argo CD to sync, then:
 curl http://localhost:8888/
-# {"status":"ok", "message": "v2"}
+# {"status":"ok", "message": "Hello from v2!"}
 
 # Switch back to v1
 sed -i 's/valarmo3\/playground:v2/valarmo3\/playground:v1/g' manifests/deployment.yaml
@@ -1080,7 +1045,7 @@ curl http://localhost:8888/
 Expected:
 
 ```json
-{ "status": "ok", "message": "v2" }
+{ "status": "ok", "message": "Hello from v1!" }
 ```
 
 ---
@@ -1097,7 +1062,7 @@ git subtree push --prefix bonus/manifests gitlab main
 
 # Wait ~3 minutes for Argo CD to auto-sync, then:
 curl http://localhost:8888/
-# {"status":"ok", "message": "v2"}
+# {"status":"ok", "message": "Hello from v2!"}
 ```
 
 You can also watch the sync happen live in the Argo CD UI:
@@ -1150,3 +1115,12 @@ reach GitLab without going through your Mac's network.
 - [GitLab Helm chart values](https://gitlab.com/gitlab-org/charts/gitlab)
 - [Argo CD private repo docs](https://argo-cd.readthedocs.io/en/stable/user-guide/private-repositories/)
 - [K3d docs](https://k3d.io)
+
+---
+
+## Authors
+
+| Name              | GitHub                                       |
+| --------------    | ------------------------------------------   |
+| Adil Belmqadem    | [@belmqadem](https://github.com/belmqadem)   |
+| Mouataz Saadidi   | [@M3ayz00](https://github.com/M3ayz00)       |
